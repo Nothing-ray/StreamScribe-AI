@@ -56,11 +56,41 @@ pip install -r requirements.txt
 - `openai>=1.0.0` - DeepSeek API 调用
 - `pysrt>=1.1.2` - SRT 字幕文件解析
 
-### 3. 配置 API Key（可选）
-如果需要使用 API 调用功能，在 `config/api_key.txt` 中填入你的 DeepSeek API key：
+### 3. 配置 API Key
+
+如果需要使用 API 调用功能（如 `transcript_processor.py` 或 `summary_processor.py`），需要配置 DeepSeek API key。
+
+#### 方式一：交互式初始化（推荐）
+
+首次运行需要 API 的脚本时，程序会自动检测并提示你输入 API key：
+
+```bash
+python src/transcript_processor.py input/subtitles.srt
 ```
+
+如果 `config/api_key.txt` 不存在，会显示：
+
+```
+⚠️  API key 文件不存在: config/api_key.txt
+📝 首次使用需要设置 DeepSeek API Key
+   获取地址: https://api-docs.deepseek.com.zh-cn/
+
+请输入你的 API Key / Enter your API Key: _
+```
+
+#### 方式二：手动配置
+
+直接在 `config/api_key.txt` 中填入你的 DeepSeek API key：
+
+```
+# DeepSeek API Key
+# 获取地址: https://api-docs.deepseek.com.zh-cn/
 sk-xxxxxxxxxxxxxxxxxxxxxxxx
 ```
+
+#### 获取 API Key
+
+访问 [DeepSeek API 文档](https://api-docs.deepseek.com.zh-cn/) 注册并获取你的 API key。
 
 ## 使用方法
 
@@ -324,9 +354,20 @@ python src/summary_processor.py input/transcript.txt 40 50
 ### Q: API 调用失败怎么办？
 
 **A:** 脚本内置了自动重试机制（最多 3 次，指数退避）。如果仍然失败，请检查：
-1. API key 是否正确配置在 `config/api_key.txt` 中
+1. **API key 配置**：首次运行会自动提示输入，或手动配置到 `config/api_key.txt`
 2. 网络连接是否正常
 3. DeepSeek API 服务是否可用
+4. API key 是否有效（前往 [DeepSeek 控制台](https://api-docs.deepseek.com.zh-cn/) 检查）
+
+### Q: 交互式初始化的工作原理？
+
+**A:** 当程序检测到 `config/api_key.txt` 不存在时：
+1. 显示友好的中英双语提示
+2. 引导用户输入 API key（支持空值检测）
+3. 自动创建目录并保存到文件
+4. 后续运行直接读取，无需重复输入
+
+如需禁用交互模式（如自动化脚本），可调用 `load_api_key(key_path, interactive=False)`。
 
 ---
 

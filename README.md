@@ -28,8 +28,8 @@ Text-Processing/
 │   ├── transcript_prompt.md                     # 文稿清洗提示词
 │   ├── summary_prompt.md                        # 段落摘要提示词
 │   └── merge_prompt.md                          # 摘要合并提示词
-├── input/                                        # 输入文件目录
-├── output/                                       # 输出文件目录（自动生成）
+├── input/                                        # 输入文件目录（推荐手动创建）
+├── output/                                       # 输出文件目录（推荐手动创建，首次运行会自动创建）
 ├── requirements.txt                              # Python 依赖
 └── README.md                                     # 项目说明
 ```
@@ -56,27 +56,51 @@ pip install -r requirements.txt
 - `openai>=1.0.0` - DeepSeek API 调用
 - `pysrt>=1.1.2` - SRT 字幕文件解析
 
-### 3. 配置 API Key
+### 3. 创建目录（推荐）
+
+建议手动创建输入和输出目录，以便更好地组织文件：
+
+```bash
+# 创建输入目录（放置待处理的文件）
+mkdir input
+
+# 创建输出目录（存放处理结果）
+mkdir output
+```
+
+**注意：** 首次运行需要 API 的脚本时，如果 `output/` 目录不存在，程序会自动创建。
+
+### 4. 配置 API Key
 
 如果需要使用 API 调用功能（如 `transcript_processor.py` 或 `summary_processor.py`），需要配置 DeepSeek API key。
 
 #### 方式一：交互式初始化（推荐）
 
-首次运行需要 API 的脚本时，程序会自动检测并提示你输入 API key：
+首次运行需要 API 的脚本时，程序会自动检测并提示你输入 API key，同时确保 output 文件夹存在：
 
 ```bash
 python src/transcript_processor.py input/subtitles.srt
 ```
 
-如果 `config/api_key.txt` 不存在，会显示：
+如果 `config/api_key.txt` 不存在，会显示首次运行初始化界面：
 
 ```
-⚠️  API key 文件不存在: config/api_key.txt
-📝 首次使用需要设置 DeepSeek API Key
-   获取地址: https://api-docs.deepseek.com.zh-cn/
+============================================================
+[INIT] StreamScribe-AI 首次运行初始化
+[INIT] First-time setup for StreamScribe-AI
+============================================================
+
+[SETUP] 首次使用需要设置 DeepSeek API Key
+[SETUP] First time setup: DeepSeek API Key required
+   获取地址 Get your key: https://api-docs.deepseek.com.zh-cn/
 
 请输入你的 API Key / Enter your API Key: _
 ```
+
+输入完成后，程序会自动：
+1. 创建 `config/` 目录并保存 API key
+2. 创建 `output/` 目录（如果不存在）
+3. 显示初始化完成提示
 
 #### 方式二：手动配置
 
@@ -361,13 +385,20 @@ python src/summary_processor.py input/transcript.txt 40 50
 
 ### Q: 交互式初始化的工作原理？
 
-**A:** 当程序检测到 `config/api_key.txt` 不存在时：
-1. 显示友好的中英双语提示
-2. 引导用户输入 API key（支持空值检测）
-3. 自动创建目录并保存到文件
-4. 后续运行直接读取，无需重复输入
+**A:** 首次运行需要 API 的脚本时（`transcript_processor.py` 或 `summary_processor.py`）：
 
-如需禁用交互模式（如自动化脚本），可调用 `load_api_key(key_path, interactive=False)`。
+1. 程序检测 `config/api_key.txt` 是否存在
+2. 如果不存在，显示首次运行初始化界面
+3. 引导用户输入 API key（支持空值检测）
+4. 自动创建 `config/` 目录并保存 API key
+5. 自动创建 `output/` 目录（如果不存在）
+6. 后续运行直接读取配置，无需重复输入
+
+**目录创建逻辑：**
+- `config/`：仅在首次运行时创建
+- `output/`：每次运行时都会确保存在（如果被删除会自动重建）
+
+如需禁用交互模式（如自动化脚本），可调用 `initialize_project_setup(key_path, output_path, interactive=False)`。
 
 ---
 

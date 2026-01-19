@@ -14,7 +14,8 @@
       "Bash(class \" $file)",
       "Bash(python:*)",
       "mcp__filesystem__read_multiple_files",
-      "mcp__FileSystem-local__directory_tree"
+      "mcp__FileSystem-local__directory_tree",
+      "Bash(dir:*)"
     ]
   },
   "outputStyle": "Explanatory"

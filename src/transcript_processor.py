@@ -16,7 +16,7 @@ from preprocessor import (
     process_srt_plain,
 )
 from api_utils import create_client, call_deepseek_api
-from config_utils import load_api_key, load_prompt
+from config_utils import initialize_project_setup, load_prompt
 from progress_utils import load_progress
 from streaming_processor import process_segments_streaming
 
@@ -126,7 +126,6 @@ def main() -> None:
     script_dir = Path(__file__).parent.parent
     config_dir = script_dir / "config"
     output_dir = script_dir / "output"
-    output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
     print("直播文稿处理程序")
@@ -134,11 +133,11 @@ def main() -> None:
     print(f"配置: 每段 {min_spaces}-{max_spaces} 个空格\n")
 
     try:
-        print("正在加载配置...")
+        print("正在初始化配置...")
         api_key_path = config_dir / "api_key.txt"
         prompt_path = config_dir / "transcript_prompt.md"
 
-        api_key = load_api_key(api_key_path)
+        api_key = initialize_project_setup(api_key_path, output_dir)
         system_prompt = load_prompt(prompt_path)
 
         print(f"  API key: {api_key[:10]}...")

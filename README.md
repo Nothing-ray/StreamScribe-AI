@@ -1,0 +1,335 @@
+# 文本处理工具集
+
+用于处理各种文本格式的 Python 工具集，支持 SRT 字幕、直播文稿的处理，包括格式转换、文本清洗、分段和摘要生成。
+
+## 核心功能
+
+- 🆕 **SRT 字幕处理** - 提取纯文本、保留时间范围、时间范围切片
+- 🆕 **多格式支持** - SRT 字幕、时间戳格式、纯文本自动检测
+- **文稿清洗** - 调用 LLM 去除口语化表达，规范文本
+- **摘要生成** - 双阶段自动摘要，提取内容要点
+- **智能分段** - 按空格数量自动分段，保留时间信息
+- **断点续传** - 支持中断后继续处理
+
+## 项目结构
+
+```
+Text-Processing/
+├── src/                                          # 源代码目录
+│   ├── preprocessor.py                           # 通用文本处理器（支持 SRT/时间戳/纯文本）
+│   ├── transcript_processor.py                   # 文稿清洗处理器
+│   ├── summary_processor.py                      # 摘要处理器
+│   ├── progress_utils.py                         # 进度管理工具（断点续传）
+│   ├── api_utils.py                              # API 调用工具
+│   ├── config_utils.py                           # 配置加载工具
+│   └── streaming_processor.py                    # 流式处理核心模块
+├── config/                                       # 配置文件目录
+│   ├── api_key.txt                              # DeepSeek API Key
+│   ├── transcript_prompt.md                     # 文稿清洗提示词
+│   ├── summary_prompt.md                        # 段落摘要提示词
+│   └── merge_prompt.md                          # 摘要合并提示词
+├── input/                                        # 输入文件目录
+├── output/                                       # 输出文件目录（自动生成）
+├── requirements.txt                              # Python 依赖
+└── README.md                                     # 项目说明
+```
+
+## 功能特性
+
+| 脚本 | 功能 | 输入格式支持 | API 调用 |
+|------|------|-------------|---------|
+| `preprocessor.py` | 通用文本处理器 | SRT/时间戳/纯文本 | 否 |
+| `transcript_processor.py` | 文稿清洗处理器 | SRT/时间戳/纯文本 | 是 |
+| `summary_processor.py` | 摘要处理器 | SRT/时间戳/纯文本 | 是 |
+
+## 安装
+
+### 1. 环境要求
+- Python 3.x
+
+### 2. 安装依赖
+```bash
+pip install -r requirements.txt
+```
+
+**依赖列表：**
+- `openai>=1.0.0` - DeepSeek API 调用
+- `pysrt>=1.1.2` - SRT 字幕文件解析
+
+### 3. 配置 API Key（可选）
+如果需要使用 API 调用功能，在 `config/api_key.txt` 中填入你的 DeepSeek API key：
+```
+sk-xxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+## 使用方法
+
+### 一、通用文本处理器（preprocessor.py）🆕
+
+自动检测文件格式并处理，支持 SRT 字幕、时间戳格式和纯文本。
+
+#### 支持的处理模式
+
+| 模式 | 说明 | 适用格式 |
+|------|------|---------|
+| `plain` | 提取纯文本，去除所有时间戳 | 全部格式 |
+| `with-time` | 保留时间范围分段 | 全部格式 |
+| `slice` | 时间范围切片 | 仅 SRT 格式 |
+
+#### 使用示例
+
+```bash
+# 显示帮助信息
+python src/preprocessor.py --help
+
+# === SRT 字幕处理 ===
+
+# 提取纯文本
+python src/preprocessor.py input/subtitles.srt --mode plain
+
+# 保留时间范围分段（默认每段 50-60 个空格）
+python src/preprocessor.py input/subtitles.srt --mode with-time
+
+# 自定义分段参数
+python src/preprocessor.py input/subtitles.srt --mode with-time --min 40 --max 50
+
+# 时间范围切片（提取 2分钟到 5分钟的字幕）
+python src/preprocessor.py input/subtitles.srt --mode slice --start 2m --end 5m
+
+# === 时间戳格式文件处理 ===
+
+python src/preprocessor.py input/transcript.txt --mode with-time
+
+# === 纯文本文件处理 ===
+
+python src/preprocessor.py input/plain.txt --mode with-time --min 40 --max 50
+```
+
+#### 支持的输入格式
+
+**SRT 字幕格式：**
+```
+1
+00:00:00,690 --> 00:00:04,130
+字幕文本内容
+
+2
+00:00:04,810 --> 00:00:07,490
+下一条字幕
+```
+
+**时间戳格式：**
+```
+[0.5s --> 2.3s] 文本内容
+```
+
+**纯文本格式：**
+```
+纯文本内容
+```
+
+#### 时间格式支持（用于 --start/--end 参数）
+
+| 格式 | 说明 | 示例 |
+|------|------|------|
+| `SS` | 纯秒数 | `90` |
+| `MM:SS` | 分:秒 | `2:30` |
+| `HH:MM:SS,mmm` | SRT 格式 | `00:02:30,500` |
+| `MMm` | 分钟 | `2m` |
+| `SSs` | 秒 | `30s` |
+
+#### 输出文件
+
+| 模式 | 输出文件名 | 内容说明 |
+|------|-----------|----------|
+| `plain` | `{filename}_plain.txt` | 纯文本内容 |
+| `with-time` | `{filename}_with_time.txt` | 带时间范围的分段 |
+| `slice` | `{filename}_slice.txt` | 时间范围内字幕 |
+
+#### 输出格式示例
+
+**with-time 模式：**
+```
+============================================================
+段落 1
+============================================================
+【0.7秒 - 1分16.3秒】
+字幕文本内容...
+```
+
+**slice 模式：**
+```
+============================================================
+字幕切片
+============================================================
+时间范围: 【2分0.0秒 - 5分0.0秒】
+原始范围: 2m --> 5m
+
+============================================================
+内容
+============================================================
+
+【2分1.5秒 - 2分4.4秒】
+字幕内容
+
+【2分4.5秒 - 2分7.5秒】
+字幕内容
+...
+```
+
+---
+
+### 二、文稿清洗处理器（transcript_processor.py）
+
+自动检测格式，去除时间戳、分段后调用 DeepSeek API 进行文稿清洗。
+
+#### 支持的输入格式
+
+- SRT 字幕文件（`.srt`）
+- 时间戳格式（`.txt`）
+- 纯文本（`.txt`）
+
+#### 运行命令
+
+```bash
+# 处理 SRT 字幕文件
+python src/transcript_processor.py input/subtitles.srt
+
+# 处理时间戳格式文件
+python src/transcript_processor.py input/transcript.txt
+
+# 处理纯文本文件
+python src/transcript_processor.py input/plain.txt
+
+# 自定义分段参数（默认每段 50-60 个空格）
+python src/transcript_processor.py input/transcript.txt 40 50
+```
+
+#### 输出文件
+
+- `output/{filename}_processed.md` - 清洗后的文稿
+
+#### 特性
+
+- ✅ 自动格式检测（支持 SRT）
+- ✅ 流式写入，实时保存
+- ✅ 显式进度标记，可靠的断点续传
+- ✅ 错误自动重试（最多 3 次）
+
+---
+
+### 三、摘要处理器（summary_processor.py）
+
+双阶段摘要处理，自动检测格式，生成结构化摘要。
+
+#### 支持的输入格式
+
+- SRT 字幕文件（`.srt`）
+- 时间戳格式（`.txt`）
+- 纯文本（`.txt`）
+
+#### 运行命令
+
+```bash
+# 处理 SRT 字幕文件
+python src/summary_processor.py input/subtitles.srt
+
+# 处理带时间戳的文稿
+python src/summary_processor.py input/transcript.txt
+
+# 处理纯文本文稿
+python src/summary_processor.py input/plain_text.txt
+
+# 自定义分段参数
+python src/summary_processor.py input/transcript.txt 40 50
+```
+
+#### 输出文件
+
+- `output/{filename}_segment_summaries.md` - 各时段/段落摘要
+- `output/{filename}_final_summary.md` - 最终全文摘要
+
+#### 处理流程
+
+```
+输入文件
+  ↓
+格式检测（SRT/时间戳/纯文本）
+  ↓
+自适应分段
+  ↓
+阶段一：各段落摘要（流式写入）
+  ↓
+阶段二：合并生成最终摘要
+```
+
+#### 特性
+
+- ✅ 自动格式检测（支持 SRT）
+- ✅ 时间信息保留（SRT/时间戳格式）
+- ✅ 双阶段摘要处理
+- ✅ 显式进度标记，可靠的断点续传
+
+---
+
+## 分段参数说明
+
+脚本支持自定义分段参数来控制每段的大小：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `min_spaces` | 每段最少空格数 | 50 |
+| `max_spaces` | 每段最多空格数 | 60 |
+
+**调整建议：**
+- 输入文本较短 → 减小参数（如 30-40）
+- 输入文本较长 → 增大参数（如 80-100）
+- API 处理不稳定 → 减小参数
+
+## 常见问题
+
+### Q: 如何选择使用哪个脚本？
+
+**A: 根据需求选择：**
+
+| 需求 | 推荐脚本 |
+|------|---------|
+| 处理 SRT 字幕文件 | `preprocessor.py` |
+| 预处理文本（分段、去时间戳） | `preprocessor.py` |
+| 需要清洗文稿，去除口语化表达 | `transcript_processor.py` |
+| 需要生成摘要，了解内容概要 | `summary_processor.py` |
+
+### Q: preprocessor.py 和其他脚本的区别？
+
+- `preprocessor.py`：通用处理器，支持多种格式（包括 SRT），无需 API，适合快速预处理
+- 其他脚本：专门针对特定用途，如文稿清洗、摘要生成等，可能需要 API 调用
+
+### Q: 断点续传如何工作？
+
+**A:** 脚本使用显式进度标记机制实现可靠的断点续传：
+
+- 输出文件末尾会写入进度标记：`<!-- PROCESSING: segment=N/TOTAL, status=processing -->`
+- 处理中断后再次运行，脚本会读取标记并从断点继续
+- 支持多种状态：`processing`（处理中）、`complete`（完成）、`failed`（失败）
+- 每处理完一个段落立即写入文件并 flush，确保数据安全
+- 向后兼容旧版本文件（无标记时使用估算方法）
+
+### Q: 支持哪些输入格式？
+
+**A:**
+- `preprocessor.py`：SRT 字幕（`.srt`）、SRT 时间戳格式（`.txt`）、标准时间戳格式、纯文本
+- `transcript_processor.py`：SRT 字幕（`.srt`）、时间戳格式、纯文本
+- `summary_processor.py`：SRT 字幕（`.srt`）、时间戳格式、纯文本
+
+### Q: API 调用失败怎么办？
+
+**A:** 脚本内置了自动重试机制（最多 3 次，指数退避）。如果仍然失败，请检查：
+1. API key 是否正确配置在 `config/api_key.txt` 中
+2. 网络连接是否正常
+3. DeepSeek API 服务是否可用
+
+---
+
+## 许可
+
+MIT License

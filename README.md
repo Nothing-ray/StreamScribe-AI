@@ -381,7 +381,7 @@ python src/summary_processor.py input/transcript.txt 40 50
 1. **API key 配置**：首次运行会自动提示输入，或手动配置到 `config/api_key.txt`
 2. 网络连接是否正常
 3. DeepSeek API 服务是否可用
-4. API key 是否有效（前往 [DeepSeek 控制台](https://api-docs.deepseek.com.zh-cn/) 检查）
+4. API key 是否有效（前往 [DeepSeek 控制台](https://api-docs.deepseek.com/zh-cn/) 检查）
 
 ### Q: 交互式初始化的工作原理？
 

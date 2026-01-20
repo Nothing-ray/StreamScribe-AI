@@ -5,7 +5,8 @@
 ## 核心功能
 
 - 🆕 **SRT 字幕处理** - 提取纯文本、保留时间范围、时间范围切片
-- 🆕 **多格式支持** - SRT 字幕、时间戳格式、纯文本自动检测
+- 🆕 **多格式支持** - SRT 字幕、时间戳格式、纯文本、Markdown 自动检测
+- 🆕 **Markdown 智能分段** - 按段落结构智能分段，支持字数和段落数双重限制
 - **文稿清洗** - 调用 LLM 去除口语化表达，规范文本
 - **摘要生成** - 双阶段自动摘要，提取内容要点
 - **智能分段** - 按空格数量自动分段，保留时间信息
@@ -38,9 +39,9 @@ Text-Processing/
 
 | 脚本 | 功能 | 输入格式支持 | API 调用 |
 |------|------|-------------|---------|
-| `preprocessor.py` | 通用文本处理器 | SRT/时间戳/纯文本 | 否 |
+| `preprocessor.py` | 通用文本处理器 | SRT/时间戳/纯文本/Markdown | 否 |
 | `transcript_processor.py` | 文稿清洗处理器 | SRT/时间戳/纯文本 | 是 |
-| `summary_processor.py` | 摘要处理器 | SRT/时间戳/纯文本 | 是 |
+| `summary_processor.py` | 摘要处理器 | SRT/时间戳/纯文本/Markdown | 是 |
 
 ## 安装
 
@@ -279,6 +280,7 @@ python src/transcript_processor.py input/transcript.txt 40 50
 #### 支持的输入格式
 
 - SRT 字幕文件（`.srt`）
+- Markdown 文件（`.md`）🆕
 - 时间戳格式（`.txt`）
 - 纯文本（`.txt`）
 
@@ -296,6 +298,12 @@ python src/summary_processor.py input/plain_text.txt
 
 # 自定义分段参数
 python src/summary_processor.py input/transcript.txt 40 50
+
+# 处理 Markdown 文件（使用智能分段）
+python src/summary_processor.py input/document.md
+
+# 处理 Markdown 文件（自定义字数和段落数限制）
+python src/summary_processor.py input/document.md --char-limit 3000 --paragraph-limit 15
 ```
 
 #### 输出文件
@@ -340,6 +348,30 @@ python src/summary_processor.py input/transcript.txt 40 50
 - 输入文本较长 → 增大参数（如 80-100）
 - API 处理不稳定 → 减小参数
 
+## Markdown 智能分段
+
+`summary_processor.py` 支持 `.md` 文件的智能分段处理：
+
+### 分段策略
+
+1. **优先按双换行符分割** - 保持段落完整性
+2. **智能回退** - 如果平均段落 < 50 字符，自动回退到单换行符
+3. **双重限制** - 同时控制字数和段落数
+4. **保证段落完整** - 不会截断段落
+
+### 配置参数
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `char_limit` | 每段最大字数 | 5000 |
+| `paragraph_limit` | 每段最大段落数 | 20 |
+
+### 调整建议
+
+- 文档段落较长 → 增大 `char_limit`（如 8000-10000）
+- 文档段落较短 → 减小 `char_limit`（如 3000）
+- 章节内容较多 → 增大 `paragraph_limit`（如 30-50）
+
 ## 常见问题
 
 ### Q: 如何选择使用哪个脚本？
@@ -371,9 +403,9 @@ python src/summary_processor.py input/transcript.txt 40 50
 ### Q: 支持哪些输入格式？
 
 **A:**
-- `preprocessor.py`：SRT 字幕（`.srt`）、SRT 时间戳格式（`.txt`）、标准时间戳格式、纯文本
+- `preprocessor.py`：SRT 字幕（`.srt`）、Markdown（`.md`）、SRT 时间戳格式（`.txt`）、标准时间戳格式、纯文本
 - `transcript_processor.py`：SRT 字幕（`.srt`）、时间戳格式、纯文本
-- `summary_processor.py`：SRT 字幕（`.srt`）、时间戳格式、纯文本
+- `summary_processor.py`：SRT 字幕（`.srt`）、Markdown（`.md`）、时间戳格式、纯文本
 
 ### Q: API 调用失败怎么办？
 

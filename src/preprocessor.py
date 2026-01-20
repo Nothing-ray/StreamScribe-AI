@@ -13,7 +13,7 @@ import pysrt
 
 # ============ 类型定义 ============
 
-FormatType = Literal["timestamp", "srt_timestamp", "srt", "plain"]
+FormatType = Literal["timestamp", "srt_timestamp", "srt", "plain", "markdown"]
 ProcessMode = Literal["plain", "with-time", "slice"]
 
 TimestampInfo = Tuple[int, float, float]  # (end_position, start_time, end_time)
@@ -23,6 +23,10 @@ TimeDict = dict[str, Union[int, float]]
 TIMESTAMP_PATTERN = r'\[(\d+\.\d+)s\s*-->\s*(\d+\.\d+)s\]'  # [0.5s --> 2.3s] 格式
 SRT_TIMESTAMP_PATTERN = r'\[(\d{2}:\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,\.]\d{3})\]'  # [00:00:00.000 --> 00:00:03.080] 格式（支持逗号和点）
 SRT_TIME_PATTERN = r'^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}'  # 标准 SRT 字幕文件格式
+
+# Markdown 分段配置常量
+DEFAULT_MD_CHAR_LIMIT = 5000      # Markdown 默认字数限制
+DEFAULT_MD_PARAGRAPH_LIMIT = 20   # Markdown 默认段落数限制
 
 
 # ============ 模块导出声明 ============
@@ -48,6 +52,7 @@ __all__ = [
     'segment_by_spaces',
     'segment_with_time_ranges',
     'segment_text_by_spaces',
+    'segment_markdown_smart',
     # 格式检测
     'detect_file_format',
     'detect_text_format',
@@ -62,6 +67,9 @@ __all__ = [
     'srt_timestamp_to_seconds',
     'extract_srt_timestamps',
     'segment_with_srt_timestamps',
+    # Markdown 配置常量
+    'DEFAULT_MD_CHAR_LIMIT',
+    'DEFAULT_MD_PARAGRAPH_LIMIT',
 ]
 
 
@@ -213,9 +221,14 @@ def detect_file_format(file_path: str) -> FormatType:
         "timestamp" - 现有时间戳格式 [0.5s --> 2.3s]
         "srt_timestamp" - SRT时间戳格式 [00:00:00.000 --> 00:00:03.080]
         "srt" - SRT字幕格式
+        "markdown" - Markdown 格式
         "plain" - 纯文本
     """
     path_obj = Path(file_path)
+
+    # 优先检查 .md 扩展名
+    if path_obj.suffix.lower() == '.md':
+        return "markdown"
 
     # 检查文件扩展名
     if path_obj.suffix.lower() == '.srt':
@@ -543,6 +556,87 @@ def segment_with_srt_timestamps(
         results.append(f"{time_range}\n{segment}")
 
     return results
+
+
+def segment_markdown_smart(
+    text: str,
+    char_limit: int = DEFAULT_MD_CHAR_LIMIT,
+    paragraph_limit: int = DEFAULT_MD_PARAGRAPH_LIMIT
+) -> List[str]:
+    """
+    智能分段 Markdown 文本
+
+    分段策略：
+    1. 优先按 \n\n (双换行) 分割段落
+    2. 如果平均段落长度 < 50 字符，回退到 \n (单换行)
+    3. 累积段落直到达到字数限制或段落数限制
+    4. 保证段落完整性（不截断段落）
+
+    参数:
+        text: Markdown 原始文本
+        char_limit: 字数限制阈值（默认 5000 字）
+        paragraph_limit: 段落数限制阈值（默认 20 段）
+
+    返回:
+        分段后的文本列表
+    """
+    # Step 1: 智能分割段落
+    raw_paragraphs = text.split('\n\n')
+    raw_paragraphs = [p.strip() for p in raw_paragraphs if p.strip()]
+
+    # 如果平均段落太短，回退到单换行符
+    if raw_paragraphs:
+        avg_length = sum(len(p) for p in raw_paragraphs) / len(raw_paragraphs)
+        if avg_length < 50:
+            raw_paragraphs = text.split('\n')
+            raw_paragraphs = [p.strip() for p in raw_paragraphs if p.strip()]
+
+    paragraphs = raw_paragraphs
+
+    # Step 2: 按双重限制分组段落
+    segments = []
+    current_segment = []
+    current_char_count = 0
+    current_paragraph_count = 0
+
+    for paragraph in paragraphs:
+        paragraph_len = len(paragraph)
+
+        # 警告：单个段落超过字数限制
+        if paragraph_len > char_limit:
+            import warnings
+            warnings.warn(
+                f"单个段落 {paragraph_len} 字符超过字数限制 {char_limit}，"
+                f"该段落将被单独成段",
+                UserWarning,
+                stacklevel=2
+            )
+
+        # 检查是否超过任一限制
+        would_exceed_chars = (current_char_count + paragraph_len) > char_limit
+        would_exceed_paragraphs = (current_paragraph_count + 1) > paragraph_limit
+
+        if current_segment and (would_exceed_chars or would_exceed_paragraphs):
+            # 完成当前段落组
+            segment_text = '\n\n'.join(current_segment)
+            segments.append(segment_text)
+
+            # 开始新组
+            current_segment = [paragraph]
+            current_char_count = paragraph_len
+            current_paragraph_count = 1
+        else:
+            # 添加到当前组
+            current_segment.append(paragraph)
+            current_char_count += paragraph_len
+            current_paragraph_count += 1
+
+    # 处理最后一组
+    if current_segment:
+        segment_text = '\n\n'.join(current_segment)
+        segments.append(segment_text)
+
+    return segments
 
 
 # ============ SRT 格式处理模块 ============

@@ -15,7 +15,8 @@
       "Bash(python:*)",
       "mcp__filesystem__read_multiple_files",
       "mcp__FileSystem-local__directory_tree",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Skill(code-review:code-review)"
     ]
   },
   "outputStyle": "Explanatory"

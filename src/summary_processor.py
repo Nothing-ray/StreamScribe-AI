@@ -14,10 +14,13 @@ from preprocessor import (
     segment_with_time_ranges,
     segment_by_spaces,
     segment_with_srt_timestamps,
+    segment_markdown_smart,
     normalize_whitespace,
     detect_file_format,
     process_srt_with_time,
     FormatType,
+    DEFAULT_MD_CHAR_LIMIT,
+    DEFAULT_MD_PARAGRAPH_LIMIT,
 )
 from api_utils import create_client, call_deepseek_api
 from config_utils import initialize_project_setup, load_prompt
@@ -37,6 +40,8 @@ def adaptive_segment(
     text: str,
     min_spaces: int = DEFAULT_MIN_SPACES,
     max_spaces: int = DEFAULT_MAX_SPACES,
+    char_limit: int = DEFAULT_MD_CHAR_LIMIT,
+    paragraph_limit: int = DEFAULT_MD_PARAGRAPH_LIMIT,
 ) -> tuple[FormatType, list[str]]:
     """
     自适应分段：根据文本格式选择合适的分段方式
@@ -45,16 +50,19 @@ def adaptive_segment(
     - timestamp: [0.5s --> 2.3s] 标准时间戳格式
     - srt_timestamp: [00:00:00.000 --> 00:00:03.080] SRT时间戳格式
     - srt: 标准SRT字幕格式
+    - markdown: Markdown 格式
     - plain: 纯文本
 
     参数:
         text: 原始文本
         min_spaces: 每段最少空格数
         max_spaces: 每段最多空格数
+        char_limit: Markdown 字数限制（默认 5000）
+        paragraph_limit: Markdown 段落数限制（默认 20）
 
     返回:
         (format_type, segments)
-        - format_type: "timestamp", "srt_timestamp", "srt" 或 "plain"
+        - format_type: "timestamp", "srt_timestamp", "srt", "markdown" 或 "plain"
         - segments: 分段后的文本列表
     """
     import re
@@ -73,7 +81,10 @@ def adaptive_segment(
         format_type = "plain"
 
     # 根据格式分段
-    if format_type == "timestamp":
+    if format_type == "markdown":
+        print(f"检测到 Markdown 格式，使用智能分段（字数限制: {char_limit}，段落数限制: {paragraph_limit}）")
+        segments = segment_markdown_smart(text, char_limit, paragraph_limit)
+    elif format_type == "timestamp":
         print("检测到标准时间戳格式，使用时间范围分段")
         segments = segment_with_time_ranges(text, min_spaces, max_spaces)
     elif format_type == "srt_timestamp":
@@ -95,6 +106,7 @@ def extract_segment_content(segment: str, format_type: FormatType) -> str:
     从段落中提取用于 API 调用的内容
 
     对于带时间戳的格式，将时间范围和内容分离
+    对于 Markdown 格式，直接返回原文
     对于纯文本格式，直接返回原文
 
     参数:
@@ -109,6 +121,9 @@ def extract_segment_content(segment: str, format_type: FormatType) -> str:
         time_range = lines[0]
         content = lines[1] if len(lines) > 1 else ""
         return f"时间范围：{time_range}\n\n内容：\n{content}"
+    elif format_type == "markdown":
+        # Markdown 直接返回，可添加可选标题
+        return segment
     return segment
 
 
@@ -150,6 +165,16 @@ def build_merge_content(content: str, format_type: FormatType) -> str:
 2. 提炼核心主题和关键信息
 3. 使用清晰的段落结构
 4. 在适当位置引用时间范围"""
+    elif format_type == "markdown":
+        return f"""以下是 Markdown 文档的各片段摘要：
+
+{content}
+
+请将这些片段摘要整合成一篇完整的全文摘要，要求：
+1. 提炼核心主题和关键信息
+2. 使用清晰的段落结构
+3. 保持内容的连贯性和逻辑性
+4. 保留 Markdown 文档的结构特点"""
     # plain 格式
     return f"""以下是各段落的摘要：
 
@@ -205,11 +230,14 @@ def process_summary(
     merge_prompt: str,
     min_spaces: int = DEFAULT_MIN_SPACES,
     max_spaces: int = DEFAULT_MAX_SPACES,
+    char_limit: int = DEFAULT_MD_CHAR_LIMIT,
+    paragraph_limit: int = DEFAULT_MD_PARAGRAPH_LIMIT,
 ) -> None:
     """
     完整的摘要处理流程
 
     支持格式：
+    - .md 文件（Markdown 格式，智能分段）
     - .srt 文件（标准 SRT 字幕）
     - SRT 时间戳格式（.txt 中的 [00:00:00.000 --> 00:00:03.080]）
     - 标准时间戳格式（.txt 中的 [0.5s --> 2.3s]）
@@ -223,6 +251,8 @@ def process_summary(
         merge_prompt: 合并提示词
         min_spaces: 每段最少空格数
         max_spaces: 每段最多空格数
+        char_limit: Markdown 字数限制（默认 5000）
+        paragraph_limit: Markdown 段落数限制（默认 20）
     """
     print(f"正在读取文件: {input_path}")
 
@@ -236,13 +266,30 @@ def process_summary(
         segments = process_srt_with_time(input_path, min_spaces, max_spaces)
         format_type = "srt"
         print(f"共生成 {len(segments)} 个段落")
+    elif file_format == "markdown":
+        # Markdown 文件使用智能分段
+        with open(input_path, 'r', encoding='utf-8') as f:
+            original_text = f.read()
+        print(f"原始文本长度: {len(original_text)} 字符")
+        print(f"\n正在分段（字数限制: {char_limit}，段落数限制: {paragraph_limit}）...")
+        format_type = "markdown"
+        segments = segment_markdown_smart(original_text, char_limit, paragraph_limit)
+        print(f" 检测到格式: {format_type}")
+        print(f" 共生成 {len(segments)} 个段落")
     else:
         with open(input_path, 'r', encoding='utf-8') as f:
             original_text = f.read()
 
         print(f"原始文本长度: {len(original_text)} 字符")
         print(f"\n正在分段（每段 {min_spaces}-{max_spaces} 个空格）...")
-        format_type, segments = adaptive_segment(original_text, min_spaces, max_spaces)
+
+        format_type, segments = adaptive_segment(
+            original_text,
+            min_spaces,
+            max_spaces,
+            char_limit,
+            paragraph_limit
+        )
         print(f" 检测到格式: {format_type}")
         print(f" 共生成 {len(segments)} 个段落")
 

@@ -23,8 +23,8 @@ from streaming_processor import process_segments_streaming
 
 # ============ 配置常量 ============
 
-DEFAULT_MIN_SPACES = 50
-DEFAULT_MAX_SPACES = 60
+DEFAULT_MIN_SPACES = 150   # 每段最少空格数 (适配 DeepSeek V4 Pro 大上下文，原 50)
+DEFAULT_MAX_SPACES = 180   # 每段最多空格数 (适配 DeepSeek V4 Pro 大上下文，原 60)
 
 
 # ============ 预处理模块 ============
@@ -89,7 +89,7 @@ def parse_cli_args() -> tuple[str, int, int]:
     """
     if len(sys.argv) < 2:
         print("用法: python transcript_processor.py <输入文件路径> [最小空格数] [最大空格数]")
-        print("示例: python transcript_processor.py input.txt 50 60")
+        print("示例: python transcript_processor.py input.txt 150 180")
         sys.exit(1)
 
     input_path = sys.argv[1]

@@ -25,8 +25,8 @@ SRT_TIMESTAMP_PATTERN = r'\[(\d{2}:\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{2}:\d{2}:\
 SRT_TIME_PATTERN = r'^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}'  # 标准 SRT 字幕文件格式
 
 # Markdown 分段配置常量
-DEFAULT_MD_CHAR_LIMIT = 5000      # Markdown 默认字数限制
-DEFAULT_MD_PARAGRAPH_LIMIT = 20   # Markdown 默认段落数限制
+DEFAULT_MD_CHAR_LIMIT = 15000     # Markdown 默认字数限制 (适配 DeepSeek V4 Pro 大上下文)
+DEFAULT_MD_PARAGRAPH_LIMIT = 40   # Markdown 默认段落数限制 (适配 DeepSeek V4 Pro 大上下文)
 
 
 # ============ 模块导出声明 ============
@@ -442,7 +442,7 @@ def segment_text_by_spaces(
     return segments
 
 
-def segment_by_spaces(text: str, min_spaces: int = 50, max_spaces: int = 60) -> List[str]:
+def segment_by_spaces(text: str, min_spaces: int = 150, max_spaces: int = 180) -> List[str]:
     """
     按空格数量分段（纯文本模式）
 
@@ -460,8 +460,8 @@ def segment_by_spaces(text: str, min_spaces: int = 50, max_spaces: int = 60) -> 
 
 def segment_with_time_ranges(
     text: str,
-    min_spaces: int = 50,
-    max_spaces: int = 60
+    min_spaces: int = 150,
+    max_spaces: int = 180
 ) -> List[str]:
     """
     分段并保留时间范围（现有格式）
@@ -504,8 +504,8 @@ def segment_with_time_ranges(
 
 def segment_with_srt_timestamps(
     text: str,
-    min_spaces: int = 50,
-    max_spaces: int = 60
+    min_spaces: int = 150,
+    max_spaces: int = 180
 ) -> List[str]:
     """
     分段并保留 SRT 时间戳范围
@@ -699,8 +699,8 @@ def process_srt_plain(file_path: str) -> str:
 
 def process_srt_with_time(
     file_path: str,
-    min_spaces: int = 50,
-    max_spaces: int = 60
+    min_spaces: int = 150,
+    max_spaces: int = 180
 ) -> List[str]:
     """
     SRT → 带时间范围的分段
@@ -893,8 +893,8 @@ def process_srt_by_mode(
     mode: ProcessMode,
     output_dir: Path,
     stem: str,
-    min_spaces: int = 50,
-    max_spaces: int = 60,
+    min_spaces: int = 150,
+    max_spaces: int = 180,
     start_time: Optional[str] = None,
     end_time: Optional[str] = None
 ) -> None:
@@ -932,8 +932,8 @@ def process_plain_text_by_mode(
     mode: ProcessMode,
     output_dir: Path,
     stem: str,
-    min_spaces: int = 50,
-    max_spaces: int = 60
+    min_spaces: int = 150,
+    max_spaces: int = 180
 ) -> None:
     """根据模式处理纯文本文件"""
     content = read_file_content(file_path)
@@ -962,8 +962,8 @@ def process_file(
     file_path: str,
     mode: ProcessMode,
     output_dir: Path,
-    min_spaces: int = 50,
-    max_spaces: int = 60,
+    min_spaces: int = 150,
+    max_spaces: int = 180,
     start_time: Optional[str] = None,
     end_time: Optional[str] = None
 ) -> None:
@@ -1027,8 +1027,8 @@ class Args:
         self,
         input_path: str,
         mode: ProcessMode = "with-time",
-        min_spaces: int = 50,
-        max_spaces: int = 60,
+        min_spaces: int = 150,
+        max_spaces: int = 180,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None
     ):
@@ -1057,8 +1057,8 @@ def parse_arguments() -> Args:
 
     input_path = sys.argv[1]
     mode: ProcessMode = "with-time"
-    min_spaces = 50
-    max_spaces = 60
+    min_spaces = 150
+    max_spaces = 180
     start_time: Optional[str] = None
     end_time: Optional[str] = None
 

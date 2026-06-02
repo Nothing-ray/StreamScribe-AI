@@ -30,8 +30,8 @@ from streaming_processor import process_segments_streaming
 
 # ============ 配置常量 ============
 
-DEFAULT_MIN_SPACES = 50
-DEFAULT_MAX_SPACES = 60
+DEFAULT_MIN_SPACES = 150   # 每段最少空格数 (适配 DeepSeek V4 Pro 大上下文，原 50)
+DEFAULT_MAX_SPACES = 180   # 每段最多空格数 (适配 DeepSeek V4 Pro 大上下文，原 60)
 
 
 # ============ 格式检测与分段 ============

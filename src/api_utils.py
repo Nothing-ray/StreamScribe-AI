@@ -10,10 +10,15 @@ from openai import OpenAI
 
 # ============ 配置常量 ============
 
-MODEL_NAME = "deepseek-chat"
+MODEL_NAME = "deepseek-v4-pro"
 API_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_DELAY = 1.0
+
+# 思考模式配置
+ENABLE_THINKING_MODE = True   # 思考模式开关（设为 False 可禁用）
+REASONING_EFFORT = "high"     # 思考强度: "high"（普通请求默认）或 "max"（复杂Agent请求）
+                              # 注意：low/medium 会映射为 high，xhigh 会映射为 max
 
 
 def create_client(api_key: str) -> OpenAI:
@@ -54,14 +59,22 @@ def call_deepseek_api(
     """
     for attempt in range(max_retries):
         try:
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
+            # 构建基础请求参数
+            request_params = {
+                "model": MODEL_NAME,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content}
                 ],
-                stream=False
-            )
+                "stream": False
+            }
+
+            # 根据配置添加思考模式参数
+            if ENABLE_THINKING_MODE:
+                request_params["reasoning_effort"] = REASONING_EFFORT
+                request_params["extra_body"] = {"thinking": {"type": "enabled"}}
+
+            response = client.chat.completions.create(**request_params)
             return response.choices[0].message.content
         except Exception as e:
             if attempt < max_retries - 1:
